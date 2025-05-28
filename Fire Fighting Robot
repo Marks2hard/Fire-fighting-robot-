@@ -1,122 +1,135 @@
+#define enA 10 // Enable1 L298 Pin enA
+#define in1 9  // Motor1 L298 Pin in1
+#define in2 8  // Motor1 L298 Pin in2
+#define in3 7  // Motor2 L298 Pin in3
+#define in4 6  // Motor2 L298 Pin in4
+#define enB 5  // Enable2 L298 Pin enB
+#define ir_R A0 // Right IR fire sensor
+#define ir_F A1 // Front IR fire sensor
+#define ir_L A2 // Left IR fire sensor
+#define pump A5 // Pump control pin
 
-#define enA 10 //Enable1 L298 Pin enA
-#define in1 9  //Motor1 L298 Pin in1
-#define in2 8  //Motor1 L298 Pin in2
-#define in3 7  //Motor2 L298 Pin in3
-#define in4 6  //Motor2 L298 Pin in4
-#define enB 5  //Enable2 L298 Pin enB
-#define ir_R A0
-#define ir_F A1
-#define ir_L A2
-#define pump A5
-
-int Speed = 160; // Write The Duty Cycle 0 to 255 Enable for Motor Speed
-int s1, s2, s3;
+int Speed = 160; // Motor speed (0 to 255)
+int s1, s2, s3;  // Sensor readings (s1 = front, s2 = right, s3 = left)
 
 void setup() {
-  Serial.begin(9600); // start serial communication at 9600bps
+  Serial.begin(9600); // Start serial communication
 
-  pinMode(ir_R, INPUT); // declare fire sensor pin as input
-  pinMode(ir_F, INPUT); // declare fire sensor pin as input
-  pinMode(ir_L, INPUT); // declare fire sensor pin as input
+  // Set sensor pins as input
+  pinMode(ir_R, INPUT);
+  pinMode(ir_F, INPUT);
+  pinMode(ir_L, INPUT);
 
-  pinMode(enA, OUTPUT); // declare as output for L298 Pin enA
-  pinMode(in1, OUTPUT);  // declare as output for L298 Pin in1
-  pinMode(in2, OUTPUT);  // declare as output for L298 Pin in2
-  pinMode(in3, OUTPUT);  // declare as output for L298 Pin in3
-  pinMode(in4, OUTPUT);  // declare as output for L298 Pin in4
-  pinMode(enB, OUTPUT);  // declare as output for L298 Pin enB
+  // Set motor pins as output
+  pinMode(enA, OUTPUT);
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT);
+  pinMode(in3, OUTPUT);
+  pinMode(in4, OUTPUT);
+  pinMode(enB, OUTPUT);
 
+  // Set pump pin as output
   pinMode(pump, OUTPUT);
 
-  analogWrite(enA, Speed); // Write The Duty Cycle 0 to 255 Enable Pin A for Motor1 Speed
-  analogWrite(enB, Speed); // Write The Duty Cycle 0 to 255 Enable Pin B for Motor2 Speed
+  // Set initial motor speed
+  analogWrite(enA, Speed);
+  analogWrite(enB, Speed);
 
-  delay(500);
+  delay(500); // Wait for setup to stabilize
 }
 
 void loop() {
-  s1 = analogRead(ir_R);
-  s2 = analogRead(ir_F);
-  s3 = analogRead(ir_L);
+  // Read sensor values
+  s1 = analogRead(ir_F); // Left sensor
+  s2 = analogRead(ir_R); // Front sensor
+  s3 = analogRead(ir_L); // Right sensor
 
-  //=============================================================
-  // Auto Control
-  //=============================================================
+  // Print sensor values with updated labels
+  Serial.print("Left Sensor: ");
   Serial.print(s1);
-  Serial.print("\t");
+  Serial.print("\tFront Sensor: ");
   Serial.print(s2);
-  Serial.print("\t");
+  Serial.print("\tRight Sensor: ");
   Serial.println(s3);
   delay(50);
 
-  if(s1<250){
+  // Fire close enough to spray
+    // Fire close enough to spray
+  if (s1 < 700) {  // Left 
     Stop();
-    digitalWrite(pump, 1);
-  }
-  else if(s2<350){
+    digitalWrite(pump, HIGH);
+  } else if (s2 < 760) {  // Front
     Stop();
-    digitalWrite(pump, 1);
-  }
-  else if(s3<250){
+    digitalWrite(pump, HIGH);
+  } else if (s3 < 700) {  // Right
     Stop();
-    digitalWrite(pump, 1);
+    digitalWrite(pump, HIGH);
   }
-  else if(s1>=251 && s1<=700){
-    digitalWrite(pump, 0);
-    backword();
-    delay(100);
+
+  // Fire detected but not close yet — approach it
+  else if (s1 > 220 && s1 < 800) {  // Fire to right
     turnRight();
-    delay(200);
-  }
-  else if(s2>=251 && s2<=800){
-    digitalWrite(pump, 0);
+    digitalWrite(pump, LOW);
+  } else if (s2 > 220 && s2 < 800) {  // Fire on sight
     forword();
-  }
-  else if(s3>=251 && s3<=700){
-    digitalWrite(pump, 0);
-    backword();
-    delay(100);
+    delay(300);
+    digitalWrite(pump, LOW);
+  } else if (s3 > 220 && s3 < 800) {  // Fire to the left
     turnLeft();
-    delay(200);
-  } else {
-    digitalWrite(pump, 0);
+    delay(300);
+    digitalWrite(pump, LOW);
+  }
+
+  // No fire detected — move backward for 2 seconds and wait
+  else if (s1 > 581 && s2 > 581 && s3 > 581) {
+    digitalWrite(pump, LOW);
+    backword();
+    Stop(); 
+  
+     
+  }
+  else {
+    digitalWrite(pump, LOW);
     Stop();
   }
-  delay(10);
+
+  
 }
 
-void forword() { //forword
-  digitalWrite(in1, HIGH);  //Right Motor forword Pin
-  digitalWrite(in2, LOW);   //Right Motor backword Pin
-  digitalWrite(in3, LOW);   //Left Motor backword Pin
-  digitalWrite(in4, HIGH);  //Left Motor forword Pin
+// Motor control functions
+
+void forword() {
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, LOW);
+  digitalWrite(in3, LOW);
+  digitalWrite(in4, HIGH);
 }
 
-void backword() { //backword
-  digitalWrite(in1, LOW);   //Right Motor forword Pin
-  digitalWrite(in2, HIGH);  //Right Motor backword Pin
-  digitalWrite(in3, HIGH);  //Left Motor backword Pin
-  digitalWrite(in4, LOW);   //Left Motor forword Pin
+void backword() {
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, HIGH);
+  digitalWrite(in3, HIGH);
+  digitalWrite(in4, LOW);
 }
 
-void turnRight() { //turnRight
-  digitalWrite(in1, LOW);   //Right Motor forword Pin
-  digitalWrite(in2, HIGH);  //Right Motor backword Pin
-  digitalWrite(in3, LOW);   //Left Motor backword Pin
-  digitalWrite(in4, HIGH);  //Left Motor forword Pin
+void turnRight() {
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, HIGH);
+  digitalWrite(in3, LOW);
+  digitalWrite(in4, HIGH);
 }
 
-void turnLeft() { //turnLeft
-  digitalWrite(in1, HIGH);  //Right Motor forword Pin
-  digitalWrite(in2, LOW);   //Right Motor backword Pin
-  digitalWrite(in3, HIGH);  //Left Motor backword Pin
-  digitalWrite(in4, LOW);   //Left Motor forword Pin
+void turnLeft() {
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, LOW);
+  digitalWrite(in3, HIGH);
+  digitalWrite(in4, LOW);
 }
 
-void Stop() { //stop
-  digitalWrite(in1, LOW);   //Right Motor forword Pin
-  digitalWrite(in2, LOW);   //Right Motor backword Pin
-  digitalWrite(in3, LOW);   //Left Motor backword Pin
-  digitalWrite(in4, LOW);   //Left Motor forword Pin
+void Stop() {
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, LOW);
+  digitalWrite(in3, LOW);
+  digitalWrite(in4, LOW);
 }
+
